@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grid Example</title>
+
+    <script type="text/javascript" src="/apps/2.0p4/sdk.js"></script>
+    <script type="text/javascript">
+		Rally.onReady(function() {		
+			Ext.define('CustomApp', {
+				extend: 'Rally.app.App',
+				componentCls: 'app',
+				
+				launch: function() {	
+				
+				},
+			});
+
+			Rally.launchApp('CustomApp', {
+				name: 'Story Types'
+			});		
+		});
+
+    </script>
+</head>
+<body></body>
+</html>
