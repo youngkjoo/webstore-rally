@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grid Example</title>
+
+    <script type="text/javascript" src="/apps/2.0p4/sdk.js?wsapiVersion=1.38"></script>
+    <script type="text/javascript">
+			Rally.onReady(function() {
+				Ext.define('CustomApp', {
+					extend: 'Rally.app.App',
+					componentCls: 'app',
+					launch: function() {
+						Rally.data.ModelFactory.getModel({
+							type: 'portfolioitem/feature',
+							success: function(featureModel) {
+								this.add({
+									xtype: 'rallygrid',
+									model: featureModel,
+									columnCfgs: [
+										'FormattedID',
+										'Name', 
+										'Parent',
+										'Priority', 
+										'PlannedEndDate', 
+										'State',
+										{ text: 'Status', dataIndex: 'Status', sortable: true, flex: 1, renderer: this._renderFeatureStatus },
+										'Project', 
+										'Owner', 
+										'TPMOwner', 
+										'ReportRollup', 
+										'LeafStoryCount', 
+									],
+									storeConfig: {
+										remoteSort: true,
+										filters: this._getFilter,
+/*										filters: [
+											function(item) {
+												return true;
+											}
+										]*/
+/*
+										filters: [
+											{
+											  property: 'TPMOwner',
+											  //operator: '=',
+											  value: this.getContext().getUser().getDisplayString()
+											}
+										]
+*/
+									},
+									
+								});
+							},
+							scope: this
+						});
+					},
+					
+					
+					_renderFeatureStatus:function(value) {
+						var cls;
+
+						if (value === 'Green') {
+							cls = 'green-state';
+						}
+						else if (value === 'Yellow') {
+							cls = 'yellow-state';
+						}
+						else if (value === 'Red') {
+							cls = 'red-state';
+						}
+						else {
+							cls = 'other-state';
+						}
+
+						var s = Ext.String.format('<div class="{0}">{1}</div>', cls, value);
+	
+						return s;
+					},
+
+					_getFilter: function() {
+						var filter = [];
+				
+						filter.push(
+							function(item) {
+								return true;
+							}
+						);
+				
+						return filter;
+					},					
+				});
+            });
+
+
+          Rally.launchApp('CustomApp', {
+              name: 'My Features'
+          });
+    </script>
+
+    <style type="text/css">
+        .green-state {
+            color: green;
+			font-weight: bold;
+        }
+
+        .yellow-state {
+            color: brown;
+			font-weight: bold;
+        }
+
+        .red-state {
+            color: red;
+			font-weight: bold;
+        }
+
+        .other-state {
+            color: black;
+			font-weight: bold;
+        }
+		
+    </style>
+</head>
+<body></body>
+</html>
