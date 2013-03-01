@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grid Example</title>
+
+    <script type="text/javascript" src="/apps/2.0p4/sdk.js"></script>
+    <script type="text/javascript">
+		Rally.onReady(function() {		
+			Ext.define('CustomApp', {
+				extend: 'Rally.app.App',
+				componentCls: 'app',
+				items: [
+					{
+						xtype: 'container',
+						itemId: 'iterationSelector'
+					},
+					{
+						xtype: 'container',
+						itemId: 'spacer1',
+						style: {padding:'5px'}
+					},
+					{
+						xtype: 'container',
+						itemId: 'glidePathGrid',
+						style: {padding:'5px', width:'60%'}
+					},
+					{
+						xtype: 'container',
+						itemId: 'spacer2',
+						style: {padding:'5px'}
+					},
+					{
+						xtype: 'container',
+						itemId: 'storyTypeGrid',
+						style: {padding:'5px', width:'40%'}
+					},
+					{
+						xtype: 'container',
+						itemId: 'spacer3',
+						style: {padding:'5px'}
+					},
+					{
+						xtype: 'container',
+						itemId: 'storyGrid',
+						style: {padding:'5px', width:'90%'}
+					}					
+				],			
+
+				
+				launch: function() {	
+					this.iterationComboBox = this.down('#iterationSelector').add({
+						xtype: 'rallyiterationcombobox',
+						listeners: {
+							ready: this._onIterationComboboxReady,
+							select: this._onIterationComboBoxSelect,
+							scope: this
+						}
+					})
+				},
+
+				
+				_onIterationComboboxReady: function(combobox) {
+					this._loadStories();
+					this._loadFeatures();
+				},
+
+
+				_onIterationComboBoxSelect: function() {
+					this._loadStories();
+				},
+				
+				
+				_getFilter: function() {
+					var filter = [];
+					
+					filter.push({
+						property: 'Iteration',
+						operator: '=',
+						value: this.iterationComboBox.getValue()
+					});
+			
+					return filter;
+				},
+
+				
+				_loadStories: function() {
+					var store = Ext.create('Rally.data.WsapiDataStore', {
+						model: 'User Story',
+						autoLoad: true,
+						filters: this._getFilter(),
+						groupField: 'StoryType',
+						listeners: {
+							load: function(store, data, success) {								
+								this._updateStoryGrid(store);
+								this._aggregateStories(store);
+							},
+							scope: this
+						}
+					});
+				},
+
+				
+				_loadFeatures: function() {
+					var glidePathStore = Ext.create('Rally.data.WsapiDataStore', {
+						model: 'portfolioitem/feature',
+						autoLoad: true,
+						listeners: {
+							load: function(store, data, success) {
+								var featureResourceAllocations;
+								featureResourceAllocations = this._buildFeatureResourceAllocationsStore(store);
+								this._createGlidePathGrid(featureResourceAllocations);
+							},
+							scope: this
+						}
+					});
+				},
+				
+				
+				_updateStoryGrid: function(store) {
+					if (this._storyGrid === undefined) {
+						this._createStoryGrid(store);
+					}
+					else {
+						this._storyGrid.reconfigure(store);
+					}				
+				},
+				
+				_createStoryGrid: function(store) {				
+					this._storyGrid = Ext.create('Rally.ui.grid.Grid', {
+						title: 'Commited User Stories',
+						itemId: 'StoryGrid',
+						store: store,
+						columnCfgs: [
+							{ 
+								text: 'FormattedID', dataIndex: 'FormattedID', sortable: true, flex: 1,
+								xtype: 'templatecolumn', tpl: Ext.create('Rally.ui.renderer.template.FormattedIDTemplate')
+							},
+							{ text: 'Name', dataIndex: 'Name', sortable: true, flex: 4 },
+							{ text: 'Estimate', dataIndex: 'PlanEstimate', sortable: false, flex: 1 },
+							{ text: 'Story Type', dataIndex: 'StoryType', sortable: true, flex: 1 },
+						],
+						showPagingToolbar: false,
+						enableEditing: false
+					})
+					
+					this.down('#storyGrid').add(this._storyGrid);
+				},
+
+				
+				
+				_aggregateStories: function(store) {
+					var storyCountPerStoryType = {};
+					var storyPointsPerStoryType = {};
+					var totalStoryPoints = 0;
+					this.totalStoryCount = store.getCount();
+					
+					store.each(function(storyRecord) {
+						var storyType = storyRecord.get('StoryType');
+						var storyPoint = storyRecord.get('PlanEstimate');
+						
+						if (storyCountPerStoryType[storyType] === undefined) {
+							storyCountPerStoryType[storyType] = 0;
+							storyPointsPerStoryType[storyType] = 0;
+						}
+						storyCountPerStoryType[storyType] += 1;
+						storyPointsPerStoryType[storyType] += storyPoint;
+						totalStoryPoints += storyPoint;
+					});
+					
+					var myData = [];
+					Ext.Object.each(
+						storyCountPerStoryType, 
+						function(key, value) {
+							var pct = (value/this.totalStoryCount)*100;
+							var pts = storyPointsPerStoryType[key];
+							var ptspct = (pts/totalStoryPoints)*100;
+							myData.push({StoryType: key, Count: value, Percent: pct, Points:pts, PointsPercent: ptspct});
+						},
+						this
+					);
+					
+					var myStore = Ext.create('Rally.data.custom.Store', {
+						data: myData,     
+						fields: [
+							{name: 'StoryType', type: 'string'},
+							{name: 'Count', type: 'int'},
+							{name: 'Percent', type: 'float'},
+							{name: 'Points', type: 'int'}, 
+							{name: 'PointsPercent', type: 'float'}
+						],
+						listeners: {
+							load: function(store, data, success) {
+								this._updateStoryTypeGrid(store);
+							},
+							scope: this
+						}
+					});
+				},				
+				
+				
+				_updateStoryTypeGrid: function(store) {
+					if (this._storyTypeGrid === undefined) {
+						this._createStoryTypeGrid(store);
+					}
+					else {
+						this._storyTypeGrid.reconfigure(store);
+					}				
+				},
+				
+
+				_createStoryTypeGrid: function(store) {
+					var totalStories = store.getCount();
+					
+					var grid = Ext.create('Rally.ui.grid.Grid', {
+						title: 'User Story Types',
+						itemId: 'StoryTypeGrid',
+						store: store,
+						columnCfgs: [
+							{ text: 'Story Type', dataIndex: 'StoryType', sortable: true, flex: 4 },
+							{ text: 'Count', dataIndex: 'Count', sortable: false, summaryType: 'sum', flex: 1 },
+							{ 
+								text: '% (Count)', dataIndex: 'Percent', sortable: false, flex: 2,
+								renderer: function(value, metaData, record, rowIndex, colIndex, store, view) {
+									return value.toFixed(2) + '%';
+								}
+							},
+							{ text: 'Story Pts', dataIndex: 'Points', sortable: false, summaryType: 'sum', flex: 1 },
+							{ 
+								text: '% (Story Pts)', dataIndex: 'PointsPercent', sortable: false, flex: 2,
+								renderer: function(value, metaData, record, rowIndex, colIndex, store, view) {
+									return value.toFixed(2) + '%';
+								}
+							},							
+						],
+						storeConfig: {
+							remoteSort: false
+						},
+						features: [{
+							ftype: 'summary'
+						}],
+						showPagingToolbar: false,
+						enableEditing: false
+						
+					})
+					
+					this._storyTypeGrid = grid;
+					this.down('#storyTypeGrid').add(grid);
+				},
+
+
+				_buildFeatureResourceAllocationsStore:function(store) {
+					var features = [];
+					var resourceString;
+							
+					store.each(function(record) {							
+						var parentProgram = record.get('Parent');
+						var parentProgramName;
+						var resources = [];
+						var totalresources = 0;
+						var resourceString = record.get('ResourceAllocationPlan');
+						var project = record.get('Project');
+						var pri = record.get('Priority');
+						
+						
+						if (parentProgram != null) {
+							parentProgramName = parentProgram['_refObjectName'];
+						}
+						else {
+							parentProgramName = '';
+						}
+
+						if (pri === null) {
+							pri = 1000;
+						}
+						
+						resources = resourceString.split(',');
+						
+						for (var i=0, tot=resources.length; i < tot; i++) {
+							totalresources = totalresources + Number(resources[i]);
+						}
+						
+						if (resources.length > 0) {
+							features.push({
+								Program: parentProgramName,
+								Feature: record.get('Name'),
+								FormattedID: record.get('FormattedID'),
+								Project: project['_refObjectName'],
+								Priority: pri,
+								Total: totalresources,
+								Jan: resources[0],
+								Feb: resources[1],
+								Mar: resources[2],
+								Apr: resources[3],
+								May: resources[4],
+								Jun: resources[5],
+								Jul: resources[6],
+								Aug: resources[7],
+								Sep: resources[8],
+								Oct: resources[9],
+								Nov: resources[10],
+								Dec: resources[11]
+							})
+						}
+						else {
+							features.push({
+								Program: parentProgramName,
+								Feature: record.get('Name'),
+								FormattedID: record.get('FormattedID'),
+								Project: project['_refObjectName'],
+								Priority: pri,
+								Total: 0, 
+								Jan: 0,
+								Feb: 0,
+								Mar: 0,
+								Apr: 0,
+								May: 0,
+								Jun: 0,
+								Jul: 0,
+								Aug: 0,
+								Sep: 0,
+								Oct: 0,
+								Nov: 0,
+								Dec: 0
+							})
+						}
+					})							
+					
+					var itemsPerPage = 200;
+
+					var store = Ext.create('Rally.data.custom.Store', {						
+					  data: features,
+					  autoLoad: false,
+					  pageSize: itemsPerPage,
+					  groupField: 'Project',
+					  sorters: ['Priority'],
+					  fields: [
+						{name: 'Program', type: 'string'},
+						{name: 'Feature', type: 'string'},
+						{name: 'FormattedID', type: 'string'},
+						{name: 'Project', type: 'string'},
+						{name: 'Priority', type: 'float'},
+						{name: 'Total', type: 'float'},
+						{name: 'Jan', type: 'float'},
+						{name: 'Feb', type: 'float'},
+						{name: 'Mar', type: 'float'},
+						{name: 'Apr', type: 'float'},
+						{name: 'May', type: 'float'},
+						{name: 'Jun', type: 'float'},
+						{name: 'Jul', type: 'float'},
+						{name: 'Aug', type: 'float'},
+						{name: 'Sep', type: 'float'},
+						{name: 'Oct', type: 'float'},
+						{name: 'Nov', type: 'float'},
+						{name: 'Dec', type: 'float'}
+					  ]
+					});
+					
+					store.load({
+						params: {
+							start: 0,
+							limit: itemsPerPage
+						}
+					});
+
+					return store;
+				},
+
+
+				_createGlidePathGrid:function(store){						
+					var groupingFeature = Ext.create('Ext.grid.feature.GroupingSummary',{							
+						enableGroupingMenu: true,
+						startCollapsed: true
+					});
+					
+					var grid = Ext.create('Rally.ui.grid.Grid', {
+					  title: 'Glide Path',
+					  store: store,
+					  columnCfgs: [
+						  { text: 'FormattedID', dataIndex: 'FormattedID', sortable: false, groupable: false, draggable: false, flex: 1,
+							xtype: 'templatecolumn', tpl: Ext.create('Rally.ui.renderer.template.FormattedIDTemplate')
+						  },
+						  { text: 'Feature', dataIndex: 'Feature', sortable: true,  groupable: false, draggable: false, flex: 4 },
+						  { text: 'Priority', dataIndex: 'Priority', sortable: true,  groupable: false, draggable: false, flex: 1},
+						  { text: 'Total', dataIndex: 'Total', menuDisabled: true, sortable: false, groupable: false, draggable: false, renderer: this._renderSumResourceNumber, flex: 1 },
+						  this._monthColumnConfig ('Jan', 'Jan'),
+						  this._monthColumnConfig ('Feb', 'Feb'),
+						  this._monthColumnConfig ('Mar', 'Mar'),
+						  this._monthColumnConfig ('Apr', 'Apr'),
+						  this._monthColumnConfig ('May', 'May'),
+						  this._monthColumnConfig ('Jun', 'Jun'),
+						  this._monthColumnConfig ('Jul', 'Jul'),
+						  this._monthColumnConfig ('Aug', 'Aug'),
+						  this._monthColumnConfig ('Sep', 'Sep'),
+						  this._monthColumnConfig ('Oct', 'Oct'),
+						  this._monthColumnConfig ('Nov', 'Nov'),
+						  this._monthColumnConfig ('Dec', 'Dec'),
+					  ],
+					  features: [groupingFeature],
+					});
+
+					var collapseAllButton = Ext.create('Rally.ui.Button', {
+						text: 'Collapse All',
+						handler: function () {
+							groupingFeature.collapseAll();
+						}
+					});
+					
+					var expandAllButton = Ext.create('Rally.ui.Button', {
+						text: 'Expand All',
+						handler: function () {
+							groupingFeature.expandAll();
+						}
+					});
+					
+					this.down('#glidePathGrid').add(grid);
+				},
+
+				_renderFormattedIDLink:function(value) {
+					return '<a targe="_blank" href="https://rally1.rallydev.com/#/8031924148d/detail' + value + '">link</a>';
+				},
+
+				_renderResourceNumber:function(value) {
+					return (value === 0 ? '' : value);
+				},					
+				
+				_renderSumResourceNumber:function(value, summaryData, dataIndex) {
+					return '<div class="summary-resource">' + Math.ceil(value) + '</div>';
+				},					
+				
+				_monthColumnConfig: function(txt, dataidx) {
+					var cfg;
+					
+					cfg = { text: txt, dataIndex: dataidx, menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', summaryRenderer: this._renderSumResourceNumber, renderer: this._renderResourceNumber, flex: 1 }
+					
+					return cfg;
+				}
+			});
+
+			Rally.launchApp('CustomApp', {
+				name: 'Iteration Summary'
+			});		
+		});
+
+    </script>
+</head>
+<body></body>
+</html>
