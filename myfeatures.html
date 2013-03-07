@@ -3,59 +3,83 @@
 <head>
     <title>Grid Example</title>
 
-    <script type="text/javascript" src="/apps/2.0p4/sdk.js?wsapiVersion=1.38"></script>
+    <script type="text/javascript" src="/apps/2.0p4/sdk-debug.js?wsapiVersion=1.38"></script>
     <script type="text/javascript">
 			Rally.onReady(function() {
 				Ext.define('CustomApp', {
 					extend: 'Rally.app.App',
 					componentCls: 'app',
-					launch: function() {
-						Rally.data.ModelFactory.getModel({
-							type: 'portfolioitem/feature',
-							success: function(featureModel) {
-								this.add({
-									xtype: 'rallygrid',
-									model: featureModel,
-									columnCfgs: [
-										'FormattedID',
-										'Name', 
-										'Parent',
-										'Priority', 
-										'PlannedEndDate', 
-										'State',
-										{ text: 'Status', dataIndex: 'Status', sortable: true, flex: 1, renderer: this._renderFeatureStatus },
-										'Project', 
-										'Owner', 
-										'TPMOwner', 
-										'ReportRollup', 
-										'LeafStoryCount', 
-									],
-									storeConfig: {
-										remoteSort: true,
-										filters: this._getFilter,
-/*										filters: [
-											function(item) {
-												return true;
-											}
-										]*/
-/*
-										filters: [
-											{
-											  property: 'TPMOwner',
-											  //operator: '=',
-											  value: this.getContext().getUser().getDisplayString()
-											}
-										]
-*/
-									},
-									
-								});
-							},
-							scope: this
-						});
+					launch: function() {						
+						this._loadFeatures();
 					},
 					
 					
+					_loadFeatures: function() {
+						var features =  Ext.create('Rally.data.WsapiDataStore', {
+							model: 'portfolioitem/feature',
+							autoLoad: true,
+							listeners: {
+								load: function(store, data, success) {
+									// Note that we need to use filterBy() instead of adding 'filters' to the store since 
+									//   Rally's WsapiDataStore does not allow passing a function into 'filters' config.
+									store.filterBy(this._filterStore, this);
+									this._showGrid(store);
+								},
+								scope: this
+							}
+						});					
+					},
+					
+					
+					_filterStore: function(record) {
+						var curUser = this.getContext().getUser()._refObjectName;
+						var featureOwner = record.get('Owner')._refObjectName;
+						var featureTPMOwner = record.get('TPMOwner'); 
+
+						if (curUser === featureOwner) {
+							return true;
+						}
+						else if (curUser === featureTPMOwner) {
+							return true;
+						}
+						else {
+							return false;
+						}
+					},
+					
+					
+					_showGrid: function(store) {
+						var grid = Ext.create('Rally.ui.grid.Grid', {
+							title: 'Features Assigned to Me',
+							itemId: 'FeaturesGrid',
+							store: store,
+							columnCfgs: [
+								'FormattedID',
+								'Name', 
+								'Parent',
+								{ text: 'Pri', dataIndex: 'Priority', sortable: true, flex: 1 },
+								'PlannedEndDate', 
+								'State',
+								{ text: 'Status', dataIndex: 'Status', sortable: true, flex: 1, renderer: this._renderFeatureStatus },
+								'Project', 
+								'Owner', 
+								'TPMOwner', 
+								//'ReportRollup',
+								{ text: 'SVP', dataIndex: 'ReportRollup', sortable: true, flex: 1, renderer: this._renderSVPFlag }, 
+								{ text: 'Stories', dataIndex: 'LeafStoryCount', sortable: true, flex: 1 },
+								{ text: 'Notes', dataIndex: 'Notes', sortable: false, editable: true, flex: 6 }
+							],
+							storeConfig: {
+								remoteSort: false
+							},
+							showPagingToolbar: false,
+							enableEditing: false
+						});
+						
+						this.add(grid);
+					},
+						
+
 					_renderFeatureStatus:function(value) {
 						var cls;
 
@@ -76,18 +100,16 @@
 	
 						return s;
 					},
-
-					_getFilter: function() {
-						var filter = [];
-				
-						filter.push(
-							function(item) {
-								return true;
-							}
-						);
-				
-						return filter;
-					},					
+					
+					
+					_renderSVPFlag:function(value) {
+						if (value === true ) {
+							return "Y";
+						}
+						else {
+							return "";
+						}
+					}
 				});
             });
 

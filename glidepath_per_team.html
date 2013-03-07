@@ -48,7 +48,14 @@
 							totalresources = 0;
 							
 							for (var i=0, tot=resources.length; i < tot; i++) {
-								totalresources = totalresources + Number(resources[i]);
+								var val = resources[i];
+
+								if (val.substring(val.length - 1, val.length) === '*') {									
+									totalresources = totalresources + Number(resources[i].replace('*', ''));	
+								}
+								else {
+									totalresources = totalresources + Number(resources[i]);	
+								}								
 							}
 							
 							project = record.get('Project');							
@@ -164,7 +171,7 @@
 						 * http://www.sencha.com/forum/showthread.php?135442-Ext.grid.feature.Summary-amp-amp-Ext.grid.feature.Grouping
 						 */						
 
-						
+						console.log ('store:', store);
 						var table = Ext.create('Ext.grid.Panel', {
 						  title: 'Glide Path',
 						  store: store,
