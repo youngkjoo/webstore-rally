@@ -66,6 +66,7 @@
 									Feature: record.get('Name'),
 									FormattedID: record.get('FormattedID'),
 									Project: project['_refObjectName'],
+									Priority: record.get('Priority'),
 									Total: totalresources,
 									Jan: resources[0],
 									Feb: resources[1],
@@ -87,6 +88,7 @@
 									Feature: record.get('Name'),
 									FormattedID: record.get('FormattedID'),
 									Project: project['_refObjectName'],
+									Priority: 1000,
 									Total: 0,
 									Jan: 0,
 									Feb: 0,
@@ -116,6 +118,7 @@
 							{name: 'Feature', type: 'string'},
 							{name: 'FormattedID', type: 'string'},
 							{name: 'Project', type: 'string'},
+							{name: 'Priority', type: 'float'},
 							{name: 'Total', type: 'float'},
 							{name: 'Jan', type: 'float'},
 							{name: 'Feb', type: 'float'},
@@ -129,7 +132,13 @@
 							{name: 'Oct', type: 'float'},
 							{name: 'Nov', type: 'float'},
 							{name: 'Dec', type: 'float'}
-						  ]
+						  ],
+						  sorters: [
+						  	{
+								property: 'Priority',
+								direction: 'ASC'
+							}
+						  ]						  
 						});
 						
 						store.load({
@@ -176,11 +185,9 @@
 						  title: 'Glide Path',
 						  store: store,
 						  columns: [
-							  { text: 'FormattedID', dataIndex: 'FormattedID', sortable: false, flex: 1,
-								xtype: 'templatecolumn', tpl: Ext.create('Rally.ui.renderer.template.FormattedIDTemplate')
-							  },
+							  { text: 'FormattedID', dataIndex: 'FormattedID', sortable: false, flex: 1 },
 							  { text: 'Feature', dataIndex: 'Feature', sortable: true, flex: 4 },
-							  //{ text: 'Project', dataIndex: 'Project', sortable: true, flex: 1 },
+							  { text: 'Pri', dataIndex: 'Priority', sortable: true, flex: 1 },
 							  { text: 'Total', dataIndex: 'Total', menuDisabled: true, sortable: false, groupable: false, draggable: false, renderer: this._renderSumResourceNumber, flex: 1 },
 							  this._monthColumnConfig ('Jan', 'Jan'),
 							  this._monthColumnConfig ('Feb', 'Feb'),
