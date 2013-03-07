@@ -39,6 +39,12 @@
 					var features =  Ext.create('Rally.data.WsapiDataStore', {
 						model: 'portfolioitem/program',
 						autoLoad: true,
+						sorters: [
+							{
+								property: 'Priority',
+								direction: 'ASC'
+							}
+						],						
 						listeners: {
 							load: function(store, data, success) {
 								// Note that we need to use filterBy() instead of adding 'filters' to the store since 
@@ -57,6 +63,12 @@
 					var features =  Ext.create('Rally.data.WsapiDataStore', {
 						model: 'portfolioitem/feature',
 						autoLoad: true,
+						sorters: [
+							{
+								property: 'Priority',
+								direction: 'ASC'
+							}
+						],						
 						listeners: {
 							load: function(store, data, success) {
 								// Note that we need to use filterBy() instead of adding 'filters' to the store since 
