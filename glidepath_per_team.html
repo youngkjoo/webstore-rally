@@ -5,252 +5,347 @@
 
     <script type="text/javascript" src="/apps/2.0p4/sdk.js?wsapiVersion=1.38"></script>
     <script type="text/javascript">
-			Rally.onReady(function() {
-				Ext.define('CustomApp', {
-					extend: 'Rally.app.App',
-					componentCls: 'app',
-					launch: function() {
-						var features = Ext.create('Rally.data.WsapiDataStore', {
-							model: 'portfolioitem/feature',
-							autoLoad: true,
-							listeners: {
-								load: function(store, data, success) {
-									var featureResourceAllocations;
-									featureResourceAllocations = this._buildFeatureResourceAllocationsStore(store);
-									this._showGrid(featureResourceAllocations);
-								},
-								scope: this
-							}
-						});					
-					},
-					_buildFeatureResourceAllocationsStore:function(store) {
-						var features = [];
-						var resourceString;
-								
-						store.each(function(record) {							
-							var parentProgram = record.get('Parent');
-							var parentProgramName;
-							var resources = [];
-							var totalresources;
-							var resourceString = record.get('ResourceAllocationPlan');
-							var project;
-							var featureRef;
-							
-							
-							if (parentProgram != null) {
-								parentProgramName = parentProgram['_refObjectName'];
-							}
-							else {
-								parentProgramName = '';
-							}
-							
-							resources = resourceString.split(',');
-							totalresources = 0;
-							
-							for (var i=0, tot=resources.length; i < tot; i++) {
-								var val = resources[i];
+		Rally.onReady(function() {
+			Ext.define('CustomApp', {
+				extend: 'Rally.app.App',
+				componentCls: 'app',
 
-								if (val.substring(val.length - 1, val.length) === '*') {									
-									totalresources = totalresources + Number(resources[i].replace('*', ''));	
-								}
-								else {
-									totalresources = totalresources + Number(resources[i]);	
-								}								
-							}
-							
-							project = record.get('Project');							
 
-							if (resources.length > 0) {
-								features.push({
-									Program: parentProgramName,
-									Feature: record.get('Name'),
-									FormattedID: record.get('FormattedID'),
-									Project: project['_refObjectName'],
-									Priority: record.get('Priority'),
-									Total: totalresources,
-									Jan: resources[0],
-									Feb: resources[1],
-									Mar: resources[2],
-									Apr: resources[3],
-									May: resources[4],
-									Jun: resources[5],
-									Jul: resources[6],
-									Aug: resources[7],
-									Sep: resources[8],
-									Oct: resources[9],
-									Nov: resources[10],
-									Dec: resources[11]
-								})
-							}
-							else {
-								features.push({
-									Program: parentProgramName,
-									Feature: record.get('Name'),
-									FormattedID: record.get('FormattedID'),
-									Project: project['_refObjectName'],
-									Priority: 1000,
-									Total: 0,
-									Jan: 0,
-									Feb: 0,
-									Mar: 0,
-									Apr: 0,
-									May: 0,
-									Jun: 0,
-									Jul: 0,
-									Aug: 0,
-									Sep: 0,
-									Oct: 0,
-									Nov: 0,
-									Dec: 0
-								})
-							}
-						})							
-						
-						var itemsPerPage = 10000;
+				launch: function() {
+					this._loadProjects();
+				},
+				
+				
+				_loadProjects:function() {
+					var curProject = Ext.create('Rally.data.WsapiDataStore', {
+						model: 'project',
+						autoLoad: true,
+						listeners: {
+							load: function(store, data, success) {
+								// It's silly that I have this loop here when I know that there's only one match.
+								// Need to find a better way.
+								this._buildProjectConfigs(store);								
+								this._loadFeatures();
+							},
+							scope: this
+						}
+					})
+				},
+				
 
-						var store = Ext.create('Rally.data.custom.Store', {						
-						  data: features,
-						  autoLoad: false,
-						  pageSize: itemsPerPage,
-						  groupField: 'Project',
-						  fields: [
-							{name: 'Program', type: 'string'},
-							{name: 'Feature', type: 'string'},
-							{name: 'FormattedID', type: 'string'},
-							{name: 'Project', type: 'string'},
-							{name: 'Priority', type: 'float'},
-							{name: 'Total', type: 'float'},
-							{name: 'Jan', type: 'float'},
-							{name: 'Feb', type: 'float'},
-							{name: 'Mar', type: 'float'},
-							{name: 'Apr', type: 'float'},
-							{name: 'May', type: 'float'},
-							{name: 'Jun', type: 'float'},
-							{name: 'Jul', type: 'float'},
-							{name: 'Aug', type: 'float'},
-							{name: 'Sep', type: 'float'},
-							{name: 'Oct', type: 'float'},
-							{name: 'Nov', type: 'float'},
-							{name: 'Dec', type: 'float'}
-						  ],
-						  sorters: [
-						  	{
-								property: 'Priority',
-								direction: 'ASC'
-							}
-						  ]						  
-						});
-						
-						store.load({
-							params: {
-								start: 0,
-								limit: itemsPerPage
-							}
-						});
-
-						return store;
-					},
+				_loadFeatures:function() {
+					var features = Ext.create('Rally.data.WsapiDataStore', {
+						model: 'portfolioitem/feature',
+						autoLoad: true,
+						listeners: {
+							load: function(store, data, success) {
+								var featureResourceAllocations;
+								featureResourceAllocations = this._buildFeatureResourceAllocationsStore(store);
+								this._showGrid(featureResourceAllocations);
+							},
+							scope: this
+						}
+					});					
 					
+				},
+
+
+
+				_buildProjectConfigs:function(store) {
+					var prjCfg = {};
 					
-					_showGrid:function(store){						
-						var groupingFeature = Ext.create('Ext.grid.feature.GroupingSummary',{							
-							enableGroupingMenu: true,
-							startCollapsed: true
-						});
+					store.each(function(record) {
+						var prjName = record.get('Name');
+						var noteStr = record.get('Notes');						
 
-						/*
-						 * Start FIX: Summary + Grouping. Without this fix there would be a summary row under each group
-						 * http://www.sencha.com/forum/showthread.php?135442-Ext.grid.feature.Summary-amp-amp-Ext.grid.feature.Grouping
-						 */
-						Ext.override(Ext.grid.feature.Summary, {
-							closeRows: function() {
-								return '</tpl>{[this.recursiveCall ? "" : this.printSummaryRow()]}';
-							}
-						});
-						Ext.override(Ext.XTemplate, {
-							recurse : function(values, reference) {
-								this.recursiveCall = true;
-								var returnValue = this.apply(reference ? values[reference] : values);
-								this.recursiveCall = false;
-								return returnValue;
-							}
-						});
-						/*
-						 * End FIX: Summary + Grouping. Without this fix there would be a summary row under each group
-						 * http://www.sencha.com/forum/showthread.php?135442-Ext.grid.feature.Summary-amp-amp-Ext.grid.feature.Grouping
-						 */						
-
-						console.log ('store:', store);
-						var table = Ext.create('Ext.grid.Panel', {
-						  title: 'Glide Path',
-						  store: store,
-						  columns: [
-							  { text: 'FormattedID', dataIndex: 'FormattedID', sortable: false, flex: 1 },
-							  { text: 'Feature', dataIndex: 'Feature', sortable: true, flex: 4 },
-							  { text: 'Pri', dataIndex: 'Priority', sortable: true, flex: 1 },
-							  { text: 'Total', dataIndex: 'Total', menuDisabled: true, sortable: false, groupable: false, draggable: false, renderer: this._renderSumResourceNumber, flex: 1 },
-							  this._monthColumnConfig ('Jan', 'Jan'),
-							  this._monthColumnConfig ('Feb', 'Feb'),
-							  this._monthColumnConfig ('Mar', 'Mar'),
-							  this._monthColumnConfig ('Apr', 'Apr'),
-							  this._monthColumnConfig ('May', 'May'),
-							  this._monthColumnConfig ('Jun', 'Jun'),
-							  this._monthColumnConfig ('Jul', 'Jul'),
-							  this._monthColumnConfig ('Aug', 'Aug'),
-							  this._monthColumnConfig ('Sep', 'Sep'),
-							  this._monthColumnConfig ('Oct', 'Oct'),
-							  this._monthColumnConfig ('Nov', 'Nov'),
-							  this._monthColumnConfig ('Dec', 'Dec'),
-						  ],
-						  features: [groupingFeature],
-						});
-
-						var collapseAllButton = Ext.create('Rally.ui.Button', {
-							text: 'Collapse All',
-							handler: function () {
-								groupingFeature.collapseAll();
-							}
-						});
-						
-						var expandAllButton = Ext.create('Rally.ui.Button', {
-							text: 'Expand All',
-							handler: function () {
-								groupingFeature.expandAll();
-							}
-						});
-
-						this.add(collapseAllButton);
-						this.add(expandAllButton);						
-						this.add(table);						
-					},
-
-					_renderFormattedIDLink:function(value) {
-						return '<a targe="_blank" href="https://rally1.rallydev.com/#/8031924148d/detail' + value + '">link</a>';
-					},
-
-					_renderResourceNumber:function(value) {
-						return (value === 0 ? '' : value);
-					},					
+						if (noteStr != null) {
+							prjCfg[prjName] = this._parseProjectConfig(noteStr);	
+						}
+						else {
+							prjCfg[prjName] = "";
+						}																											
+					}, this)					
 					
-					_renderSumResourceNumber:function(value, summaryData, dataIndex) {
-						return '<div class="summary-resource">' + Math.ceil(value) + '</div>';
-					},					
+					window.projectConfig = prjCfg;  // save to global variable so that I can access it anywhere
+				},
 
-					_monthColumnConfig: function(txt, dataidx) {
-						var cfg;
-						
-						cfg = { text: txt, dataIndex: dataidx, menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', summaryRenderer: this._renderSumResourceNumber, renderer: this._renderResourceNumber, flex: 1 }
-						
-						return cfg;
+				
+				_parseProjectConfig:function(configStr) {
+					var pattern = /^{(.+)\|(.+)}$/;
+					var parsed, configKey, configVal;
+					var prjConfig = {};
+					
+					var lines = configStr.split("\\n");
+					
+					for (line in lines) {
+						parsed = pattern.exec(configStr);
+						if (parsed != null) {
+							configKey = parsed[1];
+							configVal = parsed[2];
+							prjConfig[configKey] = configVal;
+						}	
 					}
+
+					return prjConfig;									
+				},
+				
+				
+				_buildFeatureResourceAllocationsStore:function(store) {
+					var features = [];
+					var resourceString;
 					
-				});
-            });
+					store.each(function(record) {							
+						var parentProgram = record.get('Parent');
+						var parentProgramName;
+						var resources = [];
+						var totalresources;
+						var resourceString = record.get('ResourceAllocationPlan');
+						var project, projectName, totalCapacity;
+						var featureRef;
+						
+						
+						if (parentProgram != null) {
+							parentProgramName = parentProgram['_refObjectName'];
+						}
+						else {
+							parentProgramName = '';
+						}
+						
+						resources = resourceString.split(',');
+						totalresources = 0;
+						
+						for (var i=0, tot=resources.length; i < tot; i++) {
+							var val = resources[i];
+
+							if (val.substring(val.length - 1, val.length) === '*') {									
+								totalresources = totalresources + Number(resources[i].replace('*', ''));	
+							}
+							else {
+								totalresources = totalresources + Number(resources[i]);	
+							}								
+						}
+						
+						project = record.get('Project');			
+						projectName = project['_refObjectName']
+						
+						totalCapacity = window.projectConfig[projectName].TotalCapacity;
+						if (totalCapacity != undefined) {
+							projectName += ' (Capacity: ' + totalCapacity + ')';
+						} 
+						else {
+							projectName += ' (Capacity: ?)';
+						}
+					
+						
+						if (resources.length > 0) {
+							features.push({
+								Program: parentProgramName,
+								Feature: record.get('Name'),
+								FormattedID: record.get('FormattedID'),
+								Project: projectName,
+								Priority: record.get('Priority'),
+								Total: totalresources,
+								Jan: resources[0],
+								Feb: resources[1],
+								Mar: resources[2],
+								Apr: resources[3],
+								May: resources[4],
+								Jun: resources[5],
+								Jul: resources[6],
+								Aug: resources[7],
+								Sep: resources[8],
+								Oct: resources[9],
+								Nov: resources[10],
+								Dec: resources[11]
+							})
+						}
+						else {
+							features.push({
+								Program: parentProgramName,
+								Feature: record.get('Name'),
+								FormattedID: record.get('FormattedID'),
+								Project: project['_refObjectName'],
+								Priority: 1000,
+								Total: 0,
+								Jan: 0,
+								Feb: 0,
+								Mar: 0,
+								Apr: 0,
+								May: 0,
+								Jun: 0,
+								Jul: 0,
+								Aug: 0,
+								Sep: 0,
+								Oct: 0,
+								Nov: 0,
+								Dec: 0
+							})
+						}
+					}, this);							
+					
+					var itemsPerPage = 10000;
+
+					var store = Ext.create('Rally.data.custom.Store', {						
+					  data: features,
+					  autoLoad: false,
+					  pageSize: itemsPerPage,
+					  groupField: 'Project',
+					  fields: [
+						{name: 'Program', type: 'string'},
+						{name: 'Feature', type: 'string'},
+						{name: 'FormattedID', type: 'string'},
+						{name: 'Project', type: 'string'},
+						{name: 'Priority', type: 'float'},
+						{name: 'Total', type: 'float'},
+						{name: 'Jan', type: 'float'},
+						{name: 'Feb', type: 'float'},
+						{name: 'Mar', type: 'float'},
+						{name: 'Apr', type: 'float'},
+						{name: 'May', type: 'float'},
+						{name: 'Jun', type: 'float'},
+						{name: 'Jul', type: 'float'},
+						{name: 'Aug', type: 'float'},
+						{name: 'Sep', type: 'float'},
+						{name: 'Oct', type: 'float'},
+						{name: 'Nov', type: 'float'},
+						{name: 'Dec', type: 'float'}
+					  ],
+					  sorters: [
+					  	{
+							property: 'Priority',
+							direction: 'ASC'
+						}
+					  ]						  
+					});
+					
+					store.load({
+						params: {
+							start: 0,
+							limit: itemsPerPage
+						}
+					});
+
+					return store;
+				},
+				
+				
+				_showGrid:function(store){						
+					var groupingFeature = Ext.create('Ext.grid.feature.GroupingSummary',{							
+						enableGroupingMenu: true,
+						startCollapsed: true
+					});
+
+					/*
+					 * Start FIX: Summary + Grouping. Without this fix there would be a summary row under each group
+					 * http://www.sencha.com/forum/showthread.php?135442-Ext.grid.feature.Summary-amp-amp-Ext.grid.feature.Grouping
+					 */
+					Ext.override(Ext.grid.feature.Summary, {
+						closeRows: function() {
+							return '</tpl>{[this.recursiveCall ? "" : this.printSummaryRow()]}';
+						}
+					});
+					Ext.override(Ext.XTemplate, {
+						recurse : function(values, reference) {
+							this.recursiveCall = true;
+							var returnValue = this.apply(reference ? values[reference] : values);
+							this.recursiveCall = false;
+							return returnValue;
+						}
+					});
+					/*
+					 * End FIX: Summary + Grouping. Without this fix there would be a summary row under each group
+					 * http://www.sencha.com/forum/showthread.php?135442-Ext.grid.feature.Summary-amp-amp-Ext.grid.feature.Grouping
+					 */						
+
+					var table = Ext.create('Ext.grid.Panel', {
+					  title: 'Glide Path',
+					  store: store,
+					  columns: [
+						  { text: 'FormattedID', dataIndex: 'FormattedID', sortable: false, flex: 1 },
+						  { text: 'Feature', dataIndex: 'Feature', sortable: true, flex: 4 },
+						  { text: 'Pri', dataIndex: 'Priority', sortable: true, flex: 1 },
+						  { 
+						  	text: 'Total', dataIndex: 'Total', menuDisabled: true, sortable: false, groupable: false, draggable: false, flex: 1, 
+						  	renderer: this._renderSumResourceNumber,
+						  	//summaryType: 'sum', summaryRenderer: this._renderSumTotalCapacity 
+						  },
+						  this._monthColumnConfig ('Jan', 'Jan'),
+						  this._monthColumnConfig ('Feb', 'Feb'),
+						  this._monthColumnConfig ('Mar', 'Mar'),
+						  this._monthColumnConfig ('Apr', 'Apr'),
+						  this._monthColumnConfig ('May', 'May'),
+						  this._monthColumnConfig ('Jun', 'Jun'),
+						  this._monthColumnConfig ('Jul', 'Jul'),
+						  this._monthColumnConfig ('Aug', 'Aug'),
+						  this._monthColumnConfig ('Sep', 'Sep'),
+						  this._monthColumnConfig ('Oct', 'Oct'),
+						  this._monthColumnConfig ('Nov', 'Nov'),
+						  this._monthColumnConfig ('Dec', 'Dec'),
+					  ],
+					  features: [groupingFeature],
+					});
+
+					var collapseAllButton = Ext.create('Rally.ui.Button', {
+						text: 'Collapse All',
+						handler: function () {
+							groupingFeature.collapseAll();
+						}
+					});
+					
+					var expandAllButton = Ext.create('Rally.ui.Button', {
+						text: 'Expand All',
+						handler: function () {
+							groupingFeature.expandAll();
+						}
+					});
+
+					this.add(collapseAllButton);
+					this.add(expandAllButton);						
+					this.add(table);						
+				},
+
+				_renderFormattedIDLink:function(value) {
+					return '<a targe="_blank" href="https://rally1.rallydev.com/#/8031924148d/detail' + value + '">link</a>';
+				},
+
+				_renderResourceNumber:function(value) {
+					return (value === 0 ? '' : value);
+				},					
+				
+				_renderSumTotalCapacity: function (value, metadata, record, rowidx, colidx, store) {
+			  		// no idea how the name ends up here but it works for now
+			  		var prjName = this.summaryGroups[0].name;
+			  		var prjConfig = window.projectConfig[prjName];  // projectConfig is a global variable
+			  		
+			  		if (prjConfig.TotalCapacity != undefined) {
+				  		var totalCapacity = prjConfig.TotalCapacity;
+				  		
+			  			return '<div class="summary-resource">Capacity: ' + totalCapacity + '</div>';
+			  		}
+			  		else {
+			  			return '<div class="summary-resource">Capacity: ?</div>';
+			  		}
+			  	},
+				
+				_renderSumResourceNumber:function(value, summaryData, dataIndex) {
+					return '<div class="summary-resource">' + Math.ceil(value) + '</div>';
+				},					
+
+				_monthColumnConfig: function(txt, dataidx) {
+					var cfg;
+					
+					cfg = { text: txt, dataIndex: dataidx, menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', summaryRenderer: this._renderSumResourceNumber, renderer: this._renderResourceNumber, flex: 1 }
+					
+					return cfg;
+				}
+				
+			});
+        });
 
 
-          Rally.launchApp('CustomApp', {
-              name: 'Webstore Glide Path Per Team'
-          });
+      Rally.launchApp('CustomApp', {
+          name: 'Webstore Glide Path Per Team'
+      });
     </script>
 
     <style type="text/css">
