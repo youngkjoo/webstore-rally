@@ -82,16 +82,23 @@
 				},
 				
 				
-				_filterStore: function(record) {
+				_filterStore: function(record) {					
 					var curUser = this.getContext().getUser()._refObjectName;
-					var featureOwner = record.get('Owner')._refObjectName;
-					var featureTPMOwner = record.get('TPMOwner'); 
-
-					if (curUser === featureOwner) {
-						return true;
-					}
-					else if (curUser === featureTPMOwner) {
-						return true;
+					var ownerObj = record.get('Owner');
+					
+					if (ownerObj != null) {
+						var featureOwner = record.get('Owner')._refObjectName;
+						var featureTPMOwner = record.get('TPMOwner'); 
+		
+						if (curUser === featureOwner) {
+							return true;
+						}
+						else if (curUser === featureTPMOwner) {
+							return true;
+						}
+						else {
+							return false;
+						}						
 					}
 					else {
 						return false;
