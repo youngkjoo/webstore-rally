@@ -12,58 +12,13 @@
 				items: [
 					{
 						xtype: 'container',
-						itemId: 'iterationSelector'
+						itemId: 'iterationSelector',
+						style: {padding:'10px'}
 					},
 					{
 						xtype: 'container',
-						itemId: 'spacer1',
-						style: {padding:'5px'}
+						itemId: 'thePanel'
 					},
-					{
-						xtype: 'container',
-						itemId: 'glidePathGrid',
-						style: {padding:'5px', width:'60%'}
-					},
-					{
-						xtype: 'container',
-						itemId: 'spacer2',
-						style: {padding:'5px'}
-					},
-					{
-						xtype: 'container',
-						itemId: 'storyTypeGrid',
-						style: {padding:'5px', width:'40%'}
-					},
-					{
-						xtype: 'container',
-						itemId: 'spacer3',
-						style: {padding:'5px'}
-					},
-					{
-						xtype: 'container',
-						itemId: 'storyFeatureGrid',
-						style: {padding:'5px', width:'40%'}
-					},
-					{
-						xtype: 'container',
-						itemId: 'spacer3',
-						style: {padding:'5px'}
-					},
-					{
-						xtype: 'container',
-						itemId: 'commands',
-						style: {padding:'5px', width:'40%'}
-					},
-					{
-						xtype: 'container',
-						itemId: 'spacer3',
-						style: {padding:'5px'}
-					},
-					{
-						xtype: 'container',
-						itemId: 'storyGrid',
-						style: {padding:'5px', width:'90%'}
-					}					
 				],			
 
 				
@@ -76,7 +31,94 @@
 							scope: this
 						}
 					})*/
+				
+					var thePanel = Ext.create('Ext.Panel', {
+					    margin: 10,
+					    border: 0, 
+					    layout: {
+					        type: 'vbox',
+					        align: 'stretch'
+					    },
+					    items: [{
+					        xtype: 'panel',
+					        title: 'Summary',
+					        itemId: 'summaryPanel',
+					        flex: 1
+					    },{
+					        xtype: 'panel',
+					        title: 'Details',
+					        itemId: 'detailPanel',
+					        flex: 1
+					    }]
+					});					
 					
+					this.down('#thePanel').add(thePanel);
+
+
+					var summaryPanel = Ext.create('Ext.Panel', {
+					    margin: 20,
+					    border: 0, 
+					    layout: {
+					        type: 'vbox',
+					        align: 'stretch'
+					    },
+					    items: [{
+					        xtype: 'panel',
+					        //title: 'Story Type',
+					        itemId: 'aggregatePanel',
+					        flex: 1
+					    },{
+					        xtype: 'panel',
+					        itemId: 'glidePathPanel',
+					        flex: 1
+					    }]
+					});					
+					
+					this.down('#summaryPanel').add(summaryPanel);
+
+
+
+					var aggregatePanel = Ext.create('Ext.Panel', {
+						//margin: 20,
+						border: 0, 
+						layout: {
+							type: 'hbox',
+							align: 'stretch'
+						},
+						items: [
+							{
+								xtype: 'panel',
+								itemId: 'storyTypePanel',
+								flex: 1							
+							},
+							{
+								xtype: 'panel',
+								itemId: 'featurePanel',
+								flex: 1
+							}
+						]
+					});
+
+					this.down('#aggregatePanel').add(aggregatePanel);
+					
+
+					var detailPanel = Ext.create('Ext.Panel', {
+					    margin: 20,
+					    border: 0, 
+					    layout: {
+					        type: 'vbox',
+					        align: 'stretch'
+					    },
+					    items: [{
+					        xtype: 'panel',
+					        itemId: 'storiesPanel',
+					        flex: 1
+					    }]
+					});					
+					
+					this.down('#detailPanel').add(detailPanel);
+
+
 					this.datePicker = this.down('#iterationSelector').add({
 						xtype: 'rallydatefield',
 						fieldLabel: 'Sprint Start Date:',
@@ -375,6 +417,9 @@
 						  this._monthColumnConfig ('Dec', 'Dec'),
 					  ],
 					  features: [groupingFeature],
+					  showPagingToolbar: false,
+					  enableEditing: false
+
 					});
 
 					var collapseAllButton = Ext.create('Rally.ui.Button', {
@@ -391,7 +436,7 @@
 						}
 					});
 					
-					this.down('#glidePathGrid').add(grid);
+					this.down('#glidePathPanel').add(grid);
 				},
 
 				_renderFormattedIDLink:function(value) {
@@ -460,9 +505,9 @@
 						}
 					});
 
-					this.down('#commands').add(collapseAllButton);
-					this.down('#commands').add(expandAllButton);
-					this.down('#storyGrid').add(this._storyGrid);
+					this.down('#storiesPanel').add(collapseAllButton);
+					this.down('#storiesPanel').add(expandAllButton);
+					this.down('#storiesPanel').add(this._storyGrid);
 				},
 
 				
@@ -561,7 +606,7 @@
 					})
 					
 					this._storyTypeGrid = grid;
-					this.down('#storyTypeGrid').add(grid);
+					this.down('#storyTypePanel').add(grid);
 				},
 
 
@@ -663,7 +708,7 @@ console.log('_aggregateStoriesByFeatures, myData:', myData);
 					})
 					
 					this._storyFeatureGrid = grid;
-					this.down('#storyFeatureGrid').add(grid);
+					this.down('#featurePanel').add(grid);
 				},
 			});
 
