@@ -616,7 +616,6 @@
 					var storyPointsPerFeature = {};
 					var totalStoryPoints = 0;
 					this.totalStoryCount = store.getCount();
-console.log('_aggregateStoriesByFeatures, store:', store);					
 					store.each(function(storyRecord) {
 						var feature = storyRecord.get('FeatureName');
 						var storyPoint = storyRecord.get('StoryEstimate');
@@ -630,8 +629,6 @@ console.log('_aggregateStoriesByFeatures, store:', store);
 						totalStoryPoints += storyPoint;
 					});
 
-console.log('_aggregateStoriesByFeatures, storeyCountPerFeatures:', storyCountPerFeature);
-console.log('_aggregateStoriesByFeatures, storeyPointsPerFeatures:', storyPointsPerFeature);					
 					var myData = [];
 					Ext.Object.each(
 						storyCountPerFeature, 
@@ -645,7 +642,6 @@ console.log('_aggregateStoriesByFeatures, storeyPointsPerFeatures:', storyPoints
 					);
 					
 					
-console.log('_aggregateStoriesByFeatures, myData:', myData);
 					var myStore = Ext.create('Rally.data.custom.Store', {
 						data: myData,     
 						fields: [
