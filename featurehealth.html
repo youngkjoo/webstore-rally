@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grid Example</title>
+
+    <script type="text/javascript" src="/apps/2.0p5/sdk.js"></script>
+    <script type="text/javascript">
+		Rally.onReady(function() {		
+			Ext.define('CustomApp', {
+				extend: 'Rally.app.App',
+				componentCls: 'app',
+				items: [
+					{
+						xtype: 'container',
+						itemId: 'featureGrid',
+						style: {padding:'10px'}
+					},
+					{
+						xtype: 'container',
+						itemId: 'projectGrid',
+						style: {padding:'10px'}
+					},
+				],			
+
+
+				
+				launch: function() {
+					this._loadProjects();
+				},
+								
+
+				
+				_loadProjects: function() {
+					var projects = Ext.create('Rally.data.WsapiDataStore', {
+						model: 'project',
+						autoLoad: true,
+						fetch: ['Name', 'Iterations', 'StartDate', 'Resources'],
+						listeners: {
+							load: function(store, data, success) {
+								this._buildProjectData(store);
+							},
+							scope: this
+						}
+					})	
+				},
+
+
+
+				_buildProjectData: function(store) {
+					var projectData = [];
+					
+					store.each(function(record) {
+						var prjName = record.get('Name');
+						var prjIterations = record.get('Iterations');
+						var prjCurMonthResources = 0;
+						var prjLastMonthResources = 0;
+						var curMonth = new Date().getMonth();
+
+						if (projectData[prjName] === undefined) {
+							projectData[prjName] = {};	
+						}
+						
+						if (projectData[prjName]["Capacity"] == undefined) {
+							projectData[prjName]["Capacity"] = {};
+						}
+						
+						if (prjIterations != null) {
+							for (var i=0, tot=prjIterations.length; i < tot; i++) {
+								var iterationMonth = new Date(prjIterations[i].StartDate).getMonth();
+								var iterationMonthStr = this._getMonthString(iterationMonth);
+								
+								if (prjIterations[i].Resources != null) {
+									projectData[prjName]["Capacity"][iterationMonthStr] = prjIterations[i].Resources;	
+								}
+								else {
+									projectData[prjName]["Capacity"][iterationMonthStr] = 0;
+								}
+								
+							}
+						}
+					}, this);
+					
+					this.projectData = projectData;
+					this._loadStories();
+				},
+				
+
+
+				_loadStories: function() {
+					// Setup dates to use to get stories from past two iterations + current iterations
+					var base = new Date();
+					var firstDate, lastDate;
+					
+					firstDate = new Date(base);
+					lastDate = new Date(base);
+					
+					firstDate.setDate(1);
+					firstDate.setMonth(firstDate.getMonth() - 2);
+					
+					lastDate.setDate(1);
+					
+					var stories = Ext.create('Rally.data.WsapiDataStore', {
+						model: 'userstory',
+						autoLoad: true,
+						fetch: ['FormattedID', 'AcceptedDate', 'Project', 'PlanEstimate', 'Blocked', 'Iteration', 'StartDate'],
+						sorters: ['AcceptedDate'],
+						filters: [
+							{
+								property: 'Iteration.StartDate',
+								operator: '>=',
+								value: firstDate.toISOString(),
+							},
+							{
+								property: 'Iteration.StartDate',
+								operator: '<=',
+								value: lastDate.toISOString(),
+							}
+						],
+						listeners: {
+							load: function(store, data, success) {		
+								this._calculateTeamMetircs(store);
+								//this._showStoryGrid(store);
+								this._loadFeatures();
+							},
+							scope: this
+						}
+					});
+				},
+				
+				
+												
+				_compareIterationToSelectedDate: function(story) {
+					var iteration = story.get('Iteration');
+
+					// We want to get two dates, first day two months ago, and last day of last month
+					var base = new Date();
+					var firstDate, lastDate;
+					
+					firstDate = new Date(base);
+					lastDate = new Date(base);
+					
+					firstDate.setDate(1);
+					firstDate.setMonth(firstDate.getMonth() - 2);
+					
+					lastDate.setDate(1);
+					
+					if ((story != null) && (iteration != null) && (iteration.StartDate != null)) {
+						if ((iteration.StartDate >= firstDate.toISOString()) && (iteration.StartDate <= lastDate.toISOString())) {
+							return true;
+						}	
+					}
+					return false;
+				},
+
+
+
+				_showStoryGrid: function(store) {
+					var storyGrid = Ext.create('Rally.ui.grid.Grid', {
+						//title: 'Features',
+						itemId: 'FeatureGrid',
+						store: store,
+						columnCfgs: [
+							'FormattedID', 
+							'AcceptedDate', 
+							'Project', 
+							'PlanEstimate', 
+							'Blocked', 
+							'Iteration', 
+							'StartDate'
+						]
+					});
+					
+					this.down('#featureGrid').add(storyGrid);
+				},
+
+
+
+				_calculateTeamMetircs: function(store) {
+					var velocity = [];
+					var firstIteration = {};
+					var secondIteration = {};
+					
+					store.each(function(record) {
+						var projectName = record.get('Project')._refObjectName;
+						var acceptedIteration = new Date(record.get('AcceptedDate'));
+						var acceptedIterationStr = this._getMonthString(acceptedIteration.getMonth());
+						var storyPoints = record.get('PlanEstimate');
+						var storyBlocked = record.get('Blocked');
+						
+						if (record.get('Iteration') != null) {
+							var storyIteration = new Date(record.get('Iteration').StartDate);
+							var storyIterationStr = this._getMonthString(storyIteration.getMonth());
+							
+						}
+						var storyIterationStr = this._getMonthString(storyIteration.getMonth());
+
+						//initialize						
+						if (this.projectData[projectName] === undefined) {
+							this.projectData[projectName] = {};
+						}
+						
+						if (this.projectData[projectName]["Velocity"] === undefined) {
+							this.projectData[projectName]["Velocity"] = {};
+						}
+
+						if (this.projectData[projectName]["Velocity"][acceptedIterationStr] === undefined) {
+							this.projectData[projectName]["Velocity"][acceptedIterationStr] = 0;
+						}
+						
+						if (this.projectData[projectName]["BlockedStories"] === undefined) {
+							this.projectData[projectName]["BlockedStories"] = {};
+						}
+						
+						if (this.projectData[projectName]["BlockedStories"][storyIterationStr] === undefined) {
+							this.projectData[projectName]["BlockedStories"][storyIterationStr] = 0;
+						}
+
+
+						// start calculating numbers
+						this.projectData[projectName]["Velocity"][acceptedIterationStr] += storyPoints;
+						
+						if (storyBlocked) {
+							this.projectData[projectName]["BlockedStories"][storyIterationStr] += 1;
+						}
+						
+					}, this);
+				},
+
+
+				_getMonthString: function(month) {
+					switch (month) {
+						case 0: return 'Jan';
+						case 1: return 'Feb'; 
+						case 2: return 'Mar';
+						case 3: return 'Apr';
+						case 4: return 'May';
+						case 5: return 'Jun';
+						case 6: return 'Jul';
+						case 7: return 'Aug';
+						case 8: return 'Sep';
+						case 9: return 'Oct';
+						case 10: return 'Nov';
+						case 11: return 'Dec';
+						default: return '';
+					}
+				},
+
+				
+				_loadFeatures:function() {
+					var features = Ext.create('Rally.data.WsapiDataStore', {
+						model: 'portfolioitem/feature',
+						autoLoad: true,
+						fetch: [
+							'FormattedID', 'Name', 'Priority', 'State', 'Status', 'PlannedEndDate', 'BusinessRequestedDate', 'LeafStoryCount', 'LeafStoryPlanEstimateTotal', 'PercentDoneByStoryCount', 'PercentDoneByStoryPlanEstimate', 'Project', 
+							'UserStories', 'ScheduleState', 'PlanEstimate'
+						],
+						sorters: [
+							{
+								property: 'Priority',
+								direction: 'ASC'
+							}
+						],						
+						listeners: {
+							load: function(store, data, success) {
+								this._calculateFeatureMetrics(store);
+							},
+							scope: this
+						}
+					})
+				},
+				
+				
+				
+				_calculateFeatureMetrics: function(store) {
+					var features = [];
+					
+					store.each(function(record) {
+						var numStories = {};
+						var numStoriesMissingEstimate = 0;
+						var numStoriesBlocked = 0;
+						var featureID = record.get('FormattedID');
+						var stories = record.get('UserStories');
+						
+						if (stories != null) {
+							for (var i=0, tot=stories.length; i < tot; i++) {
+								var storyState = stories[i].ScheduleState;
+								
+								if (numStories[storyState] === undefined) {
+									numStories[storyState] = 0;
+								}
+								numStories[storyState] += 1;
+								
+								if (stories[i].PlanEstimate === null) {
+									numStoriesMissingEstimate += 1;
+								}
+								
+								if ((stories[i].Blocked != null) && (stories[i].Blocked === true)) {
+									numStoriesBlocked += 1;
+								}								
+							}
+
+							features.push({
+								FormattedID: record.get('FormattedID'), 
+								Name: record.get('Name'), 
+								Priority: record.get('Priority'), 
+								State: (record.get('State') === null ? '' : record.get('State').Name), 
+								Status: record.get('Status'), 
+								PlannedEndDate: record.get('PlannedEndDate'), 
+								BusinessRequestedDate: record.get('BusinessRequestedDate'),								 
+								LeafStoryCount: record.get('LeafStoryCount'),
+								TotalUndefined: (numStories['Undefined'] === null ? 0 : numStories['Undefined']),
+								TotalDefined: (numStories['Defined'] === null ? 0 : numStories['Defined']),
+								TotalCompleted: (numStories['Completed'] === null ? 0 : numStories['Completed']),
+								TotalAccepted: (numStories['Accepted'] === null ? 0 : numStories['Accepted']),
+								TotalReadyForRelease: (numStories['Ready for Release'] === null ? 0 : numStories['Ready for Release']),
+								TotalMissingEstimates: numStoriesMissingEstimate,
+								TotalBlockedStories: numStoriesBlocked,
+								LeafStoryPlanEstimateTotal: record.get('LeafStoryPlanEstimateTotal'), 
+								PercentDoneByStoryCount: record.get('PercentDoneByStoryCount'), 
+								PercentDoneByStoryPlanEstimate: record.get('PercentDoneByStoryPlanEstimate'), 
+								Project: record.get('Project')._refObjectName,								
+							})
+						}
+					}, this);
+
+					var featureStore = Ext.create('Rally.data.custom.Store', {
+						data: features,
+						pageSize: 10000,     
+						fields: [
+							{ name: 'FormattedID', type: 'string' },
+							{ name: 'Name', type: 'string' },
+							{ name: 'Priority', type: 'string' },
+							{ name: 'State', type: 'string' }, 
+							{ name: 'Status', type: 'string' }, 
+							{ name: 'PlannedEndDate', type: 'date' },
+							{ name: 'BusinessRequestedDate', type: 'string' },
+							{ name: 'LeafStoryCount', type: 'int' },
+							{ name: 'TotalUndefined', type: 'int' },
+							{ name: 'TotalDefined', type: 'int' },
+							{ name: 'TotalCompleted', type: 'int' },
+							{ name: 'TotalAccepted', type: 'int' },
+							{ name: 'TotalReadyForRelease', type: 'int' },
+							{ name: 'TotalMissingEstimates', types: 'int'},
+							{ name: 'TotalBlockedStories', types: 'int'},
+							{ name: 'LeafStoryPlanEstimateTotal', type: 'float' },
+							{ name: 'PercentDoneByStoryCount', type: 'float' },
+							{ name: 'PercentDoneByStoryPlanEstimate', type: 'float' },
+							{ name: 'Project', type: 'string' },
+						],
+						listeners: {
+							load: function(store, data, success) {
+								this._updateFeatureGrid(store);
+							},
+							scope: this
+						}
+					});
+				},
+				
+				
+				
+				_updateFeatureGrid: function(store) {
+					if (this._featureGrid === undefined) {
+						this._createFeatureGrid(store);
+					}
+					else {
+						this._featureGrid.reconfigure(store);
+					}				
+				},
+				
+				
+				_createFeatureGrid: function(store) {
+					this._featureGrid = Ext.create('Rally.ui.grid.Grid', {
+						//title: 'Features',
+						itemId: 'FeatureGrid',
+						store: store,
+						columnCfgs: [
+							{ text: 'Priority', dataIndex: 'Priority', width: 45, xtype: 'numbercolumn', format:'0.000' },
+							{ text: 'ID', dataIndex: 'FormattedID', width: 45 },
+							{ text: 'Name', dataIndex: 'Name', flex: 1 },
+							{ text: 'Project', dataIndex: 'Project' },							
+							{ text: 'State', dataIndex: 'State' },
+							{ text: 'Status', dataIndex: 'Status', renderer: this._renderFeatureStatus, scope: this	},
+							{ text: 'Planned Date', dataIndex: 'PlannedEndDate', xtype: 'datecolumn', format:'Y-m-d', renderer: this._renderPlannedEndDate, scope: this },
+							{ text: 'Req. Qtr', dataIndex: 'BusinessRequestedDate', renderer: this._renderBusinessRequestedDate, scope: this, width: 50 },
+							{ text: '% done (count)', dataIndex: 'PercentDoneByStoryCount', xtype: 'templatecolumn', tpl: Ext.create('Rally.ui.renderer.template.PercentDoneByStoryCountTemplate') },
+							{ text: '% done (points)', dataIndex: 'PercentDoneByStoryPlanEstimate', xtype: 'templatecolumn', tpl: Ext.create('Rally.ui.renderer.template.PercentDoneByStoryPlanEstimateTemplate') },
+							{ 
+								text: 'Stories',
+								columns: [
+									{ text: 'Tot', dataIndex: 'LeafStoryCount', width: 50 },
+									{ text: 'U', dataIndex: 'TotalUndefined', width: 50 },
+									{ text: 'D', dataIndex: 'TotalDefined', renderer: this._renderDefinedStories, width: 50 },
+									{ text: 'C', dataIndex: 'TotalCompleted', width: 50 },
+									{ text: 'A', dataIndex: 'TotalAccepted', width: 50 },							
+									{ text: 'RR', dataIndex: 'TotalReadyForRelease', width: 50 },
+									{ text: 'No Est', dataIndex: 'TotalMissingEstimates', renderer: this._renderRedIfNonZero, scope: this, width: 50 },
+									{ text: 'Blocked', dataIndex: 'TotalBlockedStories', renderer: this._renderRedIfNonZero, scope: this, width: 50 }
+								] 
+							},
+							//{ text: 'Capacities (this mo/last mo)', dataIndex: 'Project', renderer: this._renderCapacities, scope: this	},
+							//{ text: 'Blocked Stories', dataIndex: 'Project', renderer: this._renderBlockedStories, scope: this },
+							//{ text: 'Velocities (last mo/two mo ago)', dataIndex: 'Project', renderer: this._renderVelocities, scope: this }
+						],
+					});
+
+					this.down('#featureGrid').add(this._featureGrid);
+				},
+
+
+
+				_renderPlannedEndDate: function(value, metaData, record, rowIndex, colIndex, store, view) {
+					var cls;
+					var featureState = record.get('State');
+					
+					if ((featureState != null) && (featureState != '') && (featureState != 'Ideation') && (featureState != 'Definition') && (value === null)) {
+						cls = 'red-state';
+						return Ext.String.format('<div class="{0}">{1}</div>', cls, 'Need Date');
+					}
+					else {
+						cls = 'other-state';
+						return Ext.String.format('<div class="{0}">{1}</div>', cls, Rally.util.DateTime.format(value, 'Y-m-d'));
+					}
+					
+					
+				},
+
+
+
+				_renderBusinessRequestedDate: function(value, metaData, record, rowIndex, colIndex, store, view) {
+					var planedEndDate = record.get('PlannedEndDate');
+					var state = '';
+					var cls;
+					
+					if (record.get('State') != null) {
+						state = record.get('State')._refObjectName;
+					}
+
+					if (this._isDateWithinQuarter(planedEndDate, value)) {
+						cls = 'green-state';
+					}
+					else {
+						if ((state === "Scoping") || (state === "Development")) {
+							cls = 'red-state'
+						}
+						else {
+							cls = 'other-state';
+						}
+					}
+					
+					return Ext.String.format('<div class="{0}">{1}</div>', cls, value);
+				},
+
+
+				_isDateWithinQuarter: function(d, q) {
+					if ((d === null) || (q === null) || (d === "") || (q === "")) {
+						return false;
+					}
+
+					var _d = new Date(d);
+					var m = new Date(_d.getMonth());
+					
+					switch (q) {
+						case 'Q1':	if ((m >= 0) && (m <= 2)) {	return true; } else { return false;	}
+						case 'Q2': if ((m >= 3) && (m <= 5)) {	return true; } else { return false;	}
+						case 'Q3': if ((m >= 6) && (m <= 8)) {	return true; } else { return false;	}
+						case 'Q4':	if ((m >= 9) && (m <= 11)) { return true; } else { return false;	}
+						default: return false;
+					}
+					
+				},
+
+
+				_renderFeatureStatus:function(value) {
+					var cls;
+
+					if (value === 'Green') { cls = 'green-state'; }
+					else if (value === 'Yellow') { cls = 'yellow-state'; }
+					else if (value === 'Red') { cls = 'red-state'; }
+					else { cls = 'other-state';	}
+
+					var s = Ext.String.format('<div class="{0}">{1}</div>', cls, value);
+
+					return s;
+				},
+				
+				
+				_renderBlockedStories: function(project, metaData, record, rowIndex, colIndex, store, view) {
+					//var project = value._refObjectName;
+					var today = new Date();
+					var thisMonthStr = this._getMonthString(today.getMonth());
+					var blockedStories;
+					
+					if (this.projectData[project]["BlockedStories"] != undefined) {
+						if (this.projectData[project]["BlockedStories"][thisMonthStr] === undefined) {
+							return 0;
+						}			
+						else {
+							return this.projectData[project]["BlockedStories"][thisMonthStr];
+						}			
+					}
+				},
+				
+				
+				
+				_renderDefinedStories: function (value, metaData, record, rowIndex, colIndex, store, view) {
+					var cls;
+					var featureState = record.get('State');
+					
+					if ((featureState != 'Ideation') && (value === 0)) {	cls = 'red-state'; }
+					else { cls = 'other-state' };
+					
+					return Ext.String.format('<div class="{0}">{1}</div>', cls, value);;
+				},
+				
+				
+				
+				_renderRedIfNonZero: function(value, metaData, record, rowIndex, colIndex, store, view) {
+					if (value > 0) { return Ext.String.format('<div class="{0}">{1}</div>', 'red-state', value); }
+					else { return ''; } 
+				},
+				
+				
+				
+				_renderCapacities: function(project, metaData, record, rowIndex, colIndex, store, view) {
+					//var project = value._refObjectName;
+					var today = new Date();
+					var thisMonthStr = this._getMonthString(today.getMonth());
+					var lastMonthStr = this._getMonthString(today.getMonth() - 1);
+					var twoMonthsAgoMonthString = this._getMonthString(today.getMonth() - 2);
+					
+					var thisMonthCapacity = 0, lastMonthCapacity = 0;
+					
+					if (this.projectData[project]["Capacity"] != undefined) {
+						if (this.projectData[project]["Capacity"][thisMonthStr] === undefined) {
+							thisMonthCapacity = 0;
+						}
+						else {
+							thisMonthCapacity = this.projectData[project]["Capacity"][thisMonthStr];
+						};
+						
+						if (this.projectData[project]["Capacity"][lastMonthStr] === undefined) {
+							lastMonthCapacity = 0;
+						}
+						else {
+							lastMonthCapacity = this.projectData[project]["Capacity"][lastMonthStr];
+						};
+						
+					}
+
+					return lastMonthCapacity + ' / ' + thisMonthCapacity;
+				},
+				
+				
+				_renderVelocities: function(project, metaData, record, rowIndex, colIndex, store, view) {
+					//var project = value._refObjectName;
+					var today = new Date();
+					var thisMonthStr = this._getMonthString(today.getMonth());
+					var lastMonthStr = this._getMonthString(today.getMonth() - 1);
+					var twoMonthsAgoMonthString = this._getMonthString(today.getMonth() - 2);
+					
+					var lastMonthVelocity = 0, twoMonthsAgoVelocity = 0;
+					
+					if (this.projectData[project]["Velocity"] != undefined) {
+						if (this.projectData[project]["Velocity"][lastMonthStr] === undefined) {
+							lastMonthVelocity = 0;
+						}
+						else {
+							lastMonthVelocity = this.projectData[project]["Velocity"][lastMonthStr];
+						};
+						
+						if (this.projectData[project]["Velocity"][twoMonthsAgoMonthString] === undefined) {
+							twoMonthsAgoVelocity = 0;
+						}
+						else {
+							twoMonthsAgoVelocity = this.projectData[project]["Velocity"][twoMonthsAgoMonthString];
+						};
+					}
+					
+					return lastMonthVelocity + ' / ' + twoMonthsAgoVelocity;
+				}
+
+			});
+
+			Rally.launchApp('CustomApp', {
+				name: 'Feature Health'
+			});		
+		});
+
+    </script>
+    <style type="text/css">
+        .green-state {
+            color: green;
+			font-weight: bold;
+        }
+
+        .yellow-state {
+            color: yellow;
+			font-weight: bold;
+        }
+
+        .red-state {
+            color: red;
+			font-weight: bold;
+        }
+
+        .other-state {
+            color: black;
+			font-weight: bold;
+        }
+		
+    </style>
+</head>
+<body></body>
+</html>

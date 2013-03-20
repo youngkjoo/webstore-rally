@@ -3,7 +3,7 @@
 <head>
     <title>Grid Example</title>
 
-    <script type="text/javascript" src="/apps/2.0p4/sdk.js?wsapiVersion=1.38"></script>
+    <script type="text/javascript" src="/apps/2.0p5/sdk.js?wsapiVersion=1.38"></script>
     <script type="text/javascript">
 		Rally.onReady(function() {
 			Ext.define('CustomApp', {
@@ -260,27 +260,84 @@
 					var table = Ext.create('Ext.grid.Panel', {
 					  title: 'Glide Path',
 					  store: store,
+					  columnLines: true,
 					  columns: [
-						  { text: 'FormattedID', dataIndex: 'FormattedID', sortable: false, flex: 1 },
-						  { text: 'Feature', dataIndex: 'Feature', sortable: true, flex: 4 },
-						  { text: 'Pri', dataIndex: 'Priority', sortable: true, flex: 1 },
+						  { text: 'FormattedID', dataIndex: 'FormattedID', sortable: false, width: 70 },
+						  { text: 'Feature', dataIndex: 'Feature', sortable: true, flex: 1 },
+						  { text: 'Pri', dataIndex: 'Priority', sortable: true, width: 70 },
 						  { 
-						  	text: 'Total', dataIndex: 'Total', menuDisabled: true, sortable: false, groupable: false, draggable: false, flex: 1, 
+						  	text: 'Total', dataIndex: 'Total', menuDisabled: true, sortable: false, groupable: false, draggable: false, width: 70, 
 						  	renderer: this._renderSumResourceNumber,
 						  	//summaryType: 'sum', summaryRenderer: this._renderSumTotalCapacity 
 						  },
-						  this._monthColumnConfig ('Jan', 'Jan'),
-						  this._monthColumnConfig ('Feb', 'Feb'),
-						  this._monthColumnConfig ('Mar', 'Mar'),
-						  this._monthColumnConfig ('Apr', 'Apr'),
-						  this._monthColumnConfig ('May', 'May'),
-						  this._monthColumnConfig ('Jun', 'Jun'),
-						  this._monthColumnConfig ('Jul', 'Jul'),
-						  this._monthColumnConfig ('Aug', 'Aug'),
-						  this._monthColumnConfig ('Sep', 'Sep'),
-						  this._monthColumnConfig ('Oct', 'Oct'),
-						  this._monthColumnConfig ('Nov', 'Nov'),
-						  this._monthColumnConfig ('Dec', 'Dec'),
+						  {
+						  	text: 'Q1',
+						  	columns: [
+							  { 
+								text: 'Jan', dataIndex: 'Jan', menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', 
+								summaryRenderer: this._renderSumResourceNumber, renderer: function (value, metadata) { metadata.tdCls += 'q13'; return value; }, width: 70,
+							  },
+							  { 
+							  	text: 'Feb', dataIndex: 'Feb', menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', 
+							    summaryRenderer: this._renderSumResourceNumber, renderer: function (value, metadata) { metadata.tdCls += 'q13'; return value; }, width: 70,
+							  },
+							  {
+							  	text: 'Mar', dataIndex: 'Mar', menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', 
+							    summaryRenderer: this._renderSumResourceNumber, renderer: function (value, metadata) { metadata.tdCls += 'q13'; return value; }, width: 70,
+							  },
+						  	],
+						  },
+						  {
+						  	text: 'Q2',
+						  	columns: [
+							  { 
+								text: 'Apr', dataIndex: 'Apr', menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', 
+								summaryRenderer: this._renderSumResourceNumber, renderer: function (value, metadata) { metadata.tdCls += 'q24'; return value; }, width: 70,
+							  },
+							  { 
+							  	text: 'May', dataIndex: 'May', menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', 
+							    summaryRenderer: this._renderSumResourceNumber, renderer: function (value, metadata) { metadata.tdCls += 'q24'; return value; }, width: 70,
+							  },
+							  {
+							  	text: 'Jun', dataIndex: 'Jun', menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', 
+							    summaryRenderer: this._renderSumResourceNumber, renderer: function (value, metadata) { metadata.tdCls += 'q24'; return value; }, width: 70,
+							  },
+						  	],
+						  },
+						  {
+						  	text: 'Q3',
+						  	columns: [
+							  { 
+								text: 'Jul', dataIndex: 'Jul', menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', 
+								summaryRenderer: this._renderSumResourceNumber, renderer: function (value, metadata) { metadata.tdCls += 'q13'; return value; }, width: 70,
+							  },
+							  { 
+							  	text: 'Aug', dataIndex: 'Aug', menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', 
+							    summaryRenderer: this._renderSumResourceNumber, renderer: function (value, metadata) { metadata.tdCls += 'q13'; return value; }, width: 70,
+							  },
+							  {
+							  	text: 'Sep', dataIndex: 'Sep', menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', 
+							    summaryRenderer: this._renderSumResourceNumber, renderer: function (value, metadata) { metadata.tdCls += 'q13'; return value; }, width: 70,
+							  },
+						  	],
+						  },
+						  {
+						  	text: 'Q4',
+						  	columns: [
+							  { 
+								text: 'Oct', dataIndex: 'Oct', menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', 
+								summaryRenderer: this._renderSumResourceNumber, renderer: function (value, metadata) { metadata.tdCls += 'q24'; return value; }, width: 70,
+							  },
+							  { 
+							  	text: 'Nov', dataIndex: 'Nov', menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', 
+							    summaryRenderer: this._renderSumResourceNumber, renderer: function (value, metadata) { metadata.tdCls += 'q24'; return value; }, width: 70,
+							  },
+							  {
+							  	text: 'Dec', dataIndex: 'Dec', menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', 
+							    summaryRenderer: this._renderSumResourceNumber, renderer: function (value, metadata) { metadata.tdCls += 'q24'; return value; }, width: 70,
+							  },
+						  	],
+						  }
 					  ],
 					  features: [groupingFeature],
 					});
@@ -327,18 +384,12 @@
 			  		}
 			  	},
 				
-				_renderSumResourceNumber:function(value, summaryData, dataIndex) {
-					return '<div class="summary-resource">' + Math.ceil(value) + '</div>';
+				_renderSumResourceNumber:function(value, metadata, record) {
+					metadata.tdCls += 'q24';
+					//return '<div class="summary-resource">' + Math.ceil(value) + '</div>';
+					return Math.ceil(value);
 				},					
 
-				_monthColumnConfig: function(txt, dataidx) {
-					var cfg;
-					
-					cfg = { text: txt, dataIndex: dataidx, menuDisabled: true, sortable: false, groupable: false, draggable: false, summaryType: 'sum', summaryRenderer: this._renderSumResourceNumber, renderer: this._renderResourceNumber, flex: 1 }
-					
-					return cfg;
-				}
-				
 			});
         });
 
@@ -357,6 +408,16 @@
 		
 		.summary-resource {
 			font-weight: bold;
+		}
+		
+		.q13 .x-grid-cell-inner {
+			background-color: #f0f6ff;
+			color: #000000;
+		}
+		
+		.q24 .x-grid-cell-inner {
+			background-color: #F2FFF0;
+			color: #000000;
 		}
     </style>
 </head>
